@@ -13,6 +13,7 @@ class GA(object):
         self.args = args
         self.graph = self._parse_file()
         self.population = []
+        self.total_fitness = 0
         self._generate_random_population()
 
     def _parse_file(self):
@@ -31,7 +32,10 @@ class GA(object):
         for i in xrange(0, pop_size):
             chromosome = range(0, len(self.graph))
             random.shuffle(chromosome)
-            self.population.append((self._count_fitness(chromosome), copy.deepcopy(chromosome)))
+            fitness = self._count_fitness(chromosome)
+            self.total_fitness += fitness  # needed for roulette wheel selection
+            self.population.append((fitness, copy.deepcopy(chromosome)))
+        self.population = sorted(self.population, key=lambda tup: tup[0])  # needed for rank selection
 
     # return tuple (fitness, chromosome)
     def _count_fitness(self, chromosome):
@@ -49,11 +53,33 @@ class GA(object):
 
     # return two chromosomes picked by roulette wheel selection
     def _roulette_wheel_select(self):
-        pass
+        parent_chromosomes = []
+        for it in [0, 1]:
+            selector = random.random()
+            checked_chrom_fitness_sum = 0.0
+            for member in self.population:
+                checked_chrom_fitness_sum += member[0]
+                if selector < checked_chrom_fitness_sum/self.total_fitness:
+                    parent_chromosomes[it] = member[1]
+                    break
+
+        return parent_chromosomes
 
     # return two chromosomes picked by rank selection
     def _rank_select(self):
-        pass
+        parent_chromosomes = []
+        for it in [0, 1]:
+            selector = random.random()
+            pop_size = len(self.population)
+            rank_sum = pop_size * (pop_size - 1) * 0.5
+            checked_chrom_rank_sum = 0
+            for ind in xrange(0, pop_size):
+                checked_chrom_rank_sum += (pop_size - ind)
+                if selector < checked_chrom_rank_sum/rank_sum:
+                    parent_chromosomes[it] = self.population[ind][1]
+                    break
+
+        return parent_chromosomes
 
     def _pmx_crossover(self, parent1, parent2):
         pass
@@ -75,7 +101,6 @@ class GA(object):
             print self.population
             print "-----------------"
             self._generate_next_population()
-            pass
 
         return min(self.population, key=itemgetter(0))
 
@@ -98,7 +123,7 @@ if __name__ == "__main__":
         print "                   Running TSP GA for args                  "
         print "------------------------------------------------------------"
         print vars(args)
-        sys.exit(0)
+        # sys.exit(0)
         tsp_ga = GA(args)
         best_path = tsp_ga.run()
         print "\n------------------------------------------------------------"
