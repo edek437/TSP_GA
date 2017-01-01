@@ -1,0 +1,7 @@
+Generic Algorith for Traveling salesman Problem
+
+Run:
+
+python ./TSP_GA.py --help
+
+for arguments info

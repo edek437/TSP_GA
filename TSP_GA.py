@@ -125,6 +125,37 @@ class GA(object):
 
         return child
 
+    # return two offspring of parent1 and parent2 generated using POS method
+    def _pos_crossover(self, parent1, parent2):
+        if random.random() >= self.args.crossover_probability:
+            return parent1
+
+        child = copy.deepcopy(parent1)
+        parent_len = len(parent1)
+        random_pos_nbr = random.randint(1, parent_len/2)
+        immutable_positions = []
+        immutable_values = []
+        while len(immutable_positions) < random_pos_nbr:
+            rand_ind = random.randint(0,parent_len-1)
+            immutable_value = child[rand_ind]
+            if rand_ind not in immutable_positions:
+                immutable_positions.append(rand_ind)
+                immutable_values.append(immutable_value)
+
+        for node in parent2:
+            if node in immutable_values:
+                continue
+
+            for ind in xrange(0, parent_len):
+                if ind in immutable_positions:
+                    continue
+
+                child[ind] = node
+                immutable_positions.append(ind)
+                break
+
+        return child
+
     # return two offspring of parent1 and parent2 generated using ER method
     # TODO: check why this is working bad
     def _er_crossover(self, parent1, parent2):
@@ -185,7 +216,7 @@ if __name__ == "__main__":
         parser.add_argument('--iterations', type=int, default=200)
         parser.add_argument('--population_size', type=int, default=90)
         parser.add_argument('--selection_method', type=str, choices=['roulette_wheel', 'rank'], default='rank')
-        parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er'], default='er')
+        parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er', 'pos'], default='pos')
         parser.add_argument('--log_path', type=str, default='/tmp/TSP_GA.csv')
         parser.add_argument('--crossover_probability', type=float, default=0.92)
         parser.add_argument('--mutation_probability', type=float, default=0.75)
