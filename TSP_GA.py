@@ -106,6 +106,16 @@ class GA(object):
         if random.random() >= self.args.crossover_probability:
             return parent1
 
+        child = copy.deepcopy(parent1)
+        parent_len = len(parent1)
+        crossover_point = random.randint(1, parent_len/2)
+        for ind in xrange(0, crossover_point):
+            node = parent2[ind]
+            ind2 = child.index(node)
+            child[ind], child[ind2] = child[ind2], child[ind]
+
+        return child
+
     # return two offsprint of parent1 and parent2 generated using ER method
     def _er_crossover(self, parent1, parent2):
         if random.random() >= self.args.crossover_probability:
