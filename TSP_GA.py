@@ -4,8 +4,6 @@ import copy
 import random
 import traceback
 from operator import itemgetter
-import logging
-import sys
 
 
 class GA(object):
@@ -29,13 +27,13 @@ class GA(object):
     # generate initial population for GA algorithm
     def _generate_random_population(self):
         pop_size = self.args.population_size
-        for i in xrange(0, pop_size):
+        while len(self.population) != pop_size:
             chromosome = range(0, len(self.graph))
             random.shuffle(chromosome)
-            fitness = self._count_fitness(chromosome)
-            self.total_fitness += fitness  # needed for roulette wheel selection
-            # TODO: what about identical offsprings??
-            self.population.append((fitness, copy.deepcopy(chromosome)))
+            if chromosome not in self.population:
+                fitness = self._count_fitness(chromosome)
+                self.total_fitness += fitness  # needed for roulette wheel selection
+                self.population.append((fitness, copy.deepcopy(chromosome)))
         self.population = sorted(self.population, key=lambda tup: tup[0])  # needed for rank selection
 
     # return tuple (fitness, chromosome)
@@ -65,10 +63,10 @@ class GA(object):
             child2 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[1], parents[0])
             for child in [child1, child2]:
                 self._mutate(child)
-                fitness = self._count_fitness(child)
-                new_population_fitness += fitness
-                # TODO: what about identical offsprings??
-                new_population.append((fitness, child))
+                if child not in new_population:
+                    fitness = self._count_fitness(child)
+                    new_population_fitness += fitness
+                    new_population.append((fitness, child))
 
         new_population = sorted(new_population, key=lambda tup: tup[0])
         if len(new_population) == current_population_size + 1:
@@ -78,7 +76,6 @@ class GA(object):
         self.population = new_population
 
     # return two chromosomes picked by roulette wheel selection
-    # TODO: check why this is working bad
     def _roulette_wheel_select(self):
         parent_chromosomes = []
         for it in [0, 1]:
@@ -128,6 +125,7 @@ class GA(object):
         return child
 
     # return two offspring of parent1 and parent2 generated using ER method
+    # TODO: check why this is working bad
     def _er_crossover(self, parent1, parent2):
         if random.random() >= self.args.crossover_probability:
             return parent1
@@ -182,10 +180,10 @@ if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument('graph_path', type=str)
-        parser.add_argument('--iterations', type=int, default=400)
+        parser.add_argument('--iterations', type=int, default=200)
         parser.add_argument('--population_size', type=int, default=71)
         parser.add_argument('--selection_method', type=str, choices=['roulette_wheel', 'rank'], default='rank')
-        parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er'], default='pmx')
+        parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er'], default='er')
         parser.add_argument('--log_path', type=str, default='/tmp/TSP_GA.csv')
         parser.add_argument('--crossover_probability', type=float, default=1)
         parser.add_argument('--mutation_probability', type=float, default=0.75)
