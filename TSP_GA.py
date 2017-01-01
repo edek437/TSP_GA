@@ -1,19 +1,72 @@
+#!/usr/bin/env python
 import argparse
 import copy
-import sys
-
+import random
 import traceback
 
 
-def parse_file(file_name):
-    cost_matrix = []
-    with open(file_name) as f:
-        for line in f:
-            cost_mat_line = line.strip().split(" ")
-            cost_mat_line = filter(None, cost_mat_line)
-            cost_mat_line = map(lambda x: int(x), cost_mat_line)
-            cost_matrix.append(copy.deepcopy(cost_mat_line))
-    return cost_matrix
+class GA(object):
+    def __init__(self, args):
+        self.args = args
+        self.graph = self._parse_file()
+        self.population = []
+        self._generate_random_population()
+
+    def _parse_file(self):
+        cost_matrix = []
+        with open(self.args.graph_path) as f:
+            for line in f:
+                cost_mat_line = line.strip().split(" ")
+                cost_mat_line = filter(None, cost_mat_line)
+                cost_mat_line = map(lambda x: int(x), cost_mat_line)
+                cost_matrix.append(copy.deepcopy(cost_mat_line))
+        return cost_matrix
+
+    def _generate_random_population(self):
+        pop_size = self.args.population_size
+        for i in xrange(0, pop_size):
+            chromosome = range(0, len(self.graph))
+            random.shuffle(chromosome)
+            self.population.append((self._count_fitness(chromosome), copy.deepcopy(chromosome)))
+
+    # return tuple (fitness, chromosome)
+    def _count_fitness(self, chromosome):
+        fitness = 0
+        start_town_ind = 0
+        dest_town_ind = 0
+        for ind in xrange(0, len(chromosome)-1):
+            start_town_ind = chromosome[ind]
+            dest_town_ind = chromosome[ind +1]
+            fitness += self.graph[start_town_ind][dest_town_ind]
+        return fitness
+
+    def _generate_next_population(self):
+        pass
+
+    def _roulette_wheel_select(self):
+        pass
+
+    def _rank_select(self):
+        pass
+
+    def _pmx_crossover(self, parent1, parent2):
+        pass
+
+    def _er_crossover(self, parent1, parent2):
+        pass
+
+    def _mutate(self):
+        pass
+
+    def run(self):
+        print self.graph
+        print "-----------------"
+        print self.population
+        for it in xrange(0, self.args.iterations):
+            pass
+
+        return None
+
 
 if __name__ == "__main__":
     try:
@@ -24,9 +77,11 @@ if __name__ == "__main__":
         parser.add_argument('--crosover_probability', type=float, default=1.0)
         parser.add_argument('--mutation_probability', type=float, default=0.5)
         parser.add_argument('--elitism', type=bool, default=True)
+        parser.add_argument('--elitism_nbr', type=int, default=2)
+
         args = parser.parse_args()
-        cost_mat = parse_file(args.graph_path)
-        print cost_mat
+        tsp_ga = GA(args)
+        tsp_ga.run()
 
         print "\n------------------------------------------------------------"
         print "                     Results                                "
