@@ -43,9 +43,9 @@ class GA(object):
         fitness = 0
         start_town_ind = 0
         dest_town_ind = 0
-        for ind in xrange(0, len(chromosome)-1):
-            start_town_ind = chromosome[ind]
-            dest_town_ind = chromosome[ind +1]
+        for ind in xrange(0, len(chromosome)):
+            start_town_ind = chromosome[ind % len(chromosome)]
+            dest_town_ind = chromosome[(ind +1) % len(chromosome)]
             fitness += self.graph[start_town_ind][dest_town_ind]
         return fitness
 
@@ -54,13 +54,16 @@ class GA(object):
         new_population_fitness = 0
         current_population_size = len(self.population)
         if self.args.elitism:
-            # TODO: Fix odd population size problem
-            new_population.append(self.population[:min(self.args.elitism_nbr/2*2, current_population_size)]) # ensure even elitism
+            for ind in xrange(0, min(self.args.elitism_nbr/2*2, current_population_size)):  # ensure even elitism
+                # TODO: Fix odd population size problem
+                new_population.append(self.population[ind])
 
         while len(new_population) is not current_population_size:
+            # print current_population_size
+            # print len(new_population)
             parents = getattr(self, '_' + self.args.selection_method + '_select')()
-            child1 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[0]. parents[1])
-            child2 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[1]. parents[0])
+            child1 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[0], parents[1])
+            child2 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[1], parents[0])
             for child in [child1, child2]:
                 self._mutate(child)
                 fitness = self._count_fitness(child)
@@ -72,6 +75,7 @@ class GA(object):
         self.population = sorted(new_population, key=lambda tup: tup[0])
 
     # return two chromosomes picked by roulette wheel selection
+    # TODO: check why this is working bad
     def _roulette_wheel_select(self):
         parent_chromosomes = []
         for it in [0, 1]:
@@ -80,7 +84,9 @@ class GA(object):
             for member in self.population:
                 checked_chrom_fitness_sum += member[0]
                 if selector < checked_chrom_fitness_sum/self.total_fitness:
-                    parent_chromosomes[it] = member[1]
+                    if parent_chromosomes and parent_chromosomes[-1] == member[1]:
+                        continue
+                    parent_chromosomes.append(member[1])
                     break
 
         return parent_chromosomes
@@ -96,12 +102,14 @@ class GA(object):
             for ind in xrange(0, pop_size):
                 checked_chrom_rank_sum += (pop_size - ind)
                 if selector < checked_chrom_rank_sum/rank_sum:
-                    parent_chromosomes[it] = self.population[ind][1]
+                    if parent_chromosomes and parent_chromosomes[-1] == self.population[ind][1]:
+                        continue
+                    parent_chromosomes.append(self.population[ind][1])
                     break
 
         return parent_chromosomes
 
-    # return two offsprint of parent1 and parent2 generated using PMX method
+    # return two offspring of parent1 and parent2 generated using PMX method
     def _pmx_crossover(self, parent1, parent2):
         if random.random() >= self.args.crossover_probability:
             return parent1
@@ -116,7 +124,7 @@ class GA(object):
 
         return child
 
-    # return two offsprint of parent1 and parent2 generated using ER method
+    # return two offspring of parent1 and parent2 generated using ER method
     def _er_crossover(self, parent1, parent2):
         if random.random() >= self.args.crossover_probability:
             return parent1
@@ -133,12 +141,16 @@ class GA(object):
 
         # edge recombination
         child = [random.choice([parent1, parent2])[0]]
+        key = [k for k in neighbours_dict.keys() if k[1] == child[-1]]
+        del neighbours_dict[key[0]]
         while len(child) is not len(parent1):
-            for node, neighbours in neighbours_dict.iteritems():
+            new_neighbour_dict = {}
+            for node_data, neighbours in neighbours_dict.iteritems():
                 updated_neighbours = [n for n in neighbours if n != child[-1]]
-                neighbours_dict[(len(updated_neighbours), node)] = updated_neighbours
+                new_neighbour_dict[(len(updated_neighbours), node_data[1])] = updated_neighbours
+            neighbours_dict = new_neighbour_dict
             key_list = neighbours_dict.keys()
-            next_node = random.choice([k for k in key_list if k[0] == min(key_list, key=lambda t: t[1])])
+            next_node = random.choice([k for k in key_list if k[0] == min(key_list, key=lambda t: t[1])[0]])
             child.append(next_node[1])
             del neighbours_dict[next_node]
 
@@ -147,14 +159,17 @@ class GA(object):
     def _mutate(self, chromosome):
         if random.random() >= self.args.mutation_probability:
             chromosome_len = len(chromosome)
-            rand_ind1 = random.randint(0, chromosome_len)
-            rand_ind2 = random.randint(0, chromosome_len)
+            rand_ind1 = random.randint(0, chromosome_len - 1)
+            rand_ind2 = random.randint(0, chromosome_len - 1)
             chromosome[rand_ind1], chromosome[rand_ind2] = chromosome[rand_ind2], chromosome[rand_ind1]
 
     def run(self):
         print self.graph
         print "-----------------"
         for it in xrange(0, self.args.iterations):
+            print "-----------------"
+            print "Iteration: ", it
+            print "-----------------"
             print self.population
             print "-----------------"
             self._generate_next_population()
@@ -166,12 +181,12 @@ if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument('graph_path', type=str)
-        parser.add_argument('--iterations', type=int, default=100)
-        parser.add_argument('--population_size', type=int, default=40)
-        parser.add_argument('--selection_method', type=str, choices=['roulette_wheel', 'rank'], default='roulette_wheel')
+        parser.add_argument('--iterations', type=int, default=200)
+        parser.add_argument('--population_size', type=int, default=70)
+        parser.add_argument('--selection_method', type=str, choices=['roulette_wheel', 'rank'], default='rank')
         parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er'], default='pmx')
-        parser.add_argument('--crossover_probability', type=float, default=1.0)
-        parser.add_argument('--mutation_probability', type=float, default=0.5)
+        parser.add_argument('--crossover_probability', type=float, default=0.85)
+        parser.add_argument('--mutation_probability', type=float, default=0.75)
         parser.add_argument('--elitism', type=bool, default=True)
         parser.add_argument('--elitism_nbr', type=int, default=2)
 
@@ -180,7 +195,6 @@ if __name__ == "__main__":
         print "                   Running TSP GA for args                  "
         print "------------------------------------------------------------"
         print vars(args)
-        # sys.exit(0)
         tsp_ga = GA(args)
         best_path = tsp_ga.run()
         print "\n------------------------------------------------------------"
