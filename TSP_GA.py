@@ -54,11 +54,10 @@ class GA(object):
         new_population_fitness = 0
         current_population_size = len(self.population)
         if self.args.elitism:
-            for ind in xrange(0, min(self.args.elitism_nbr/2*2, current_population_size)):  # ensure even elitism
-                # TODO: Fix odd population size problem
+            for ind in xrange(0, min(self.args.elitism_nbr, current_population_size)):  # ensure even elitism
                 new_population.append(self.population[ind])
 
-        while len(new_population) is not current_population_size:
+        while len(new_population) not in [current_population_size, current_population_size + 1]:
             # print current_population_size
             # print len(new_population)
             parents = getattr(self, '_' + self.args.selection_method + '_select')()
@@ -71,8 +70,12 @@ class GA(object):
                 # TODO: what about identical offsprings??
                 new_population.append((fitness, child))
 
+        new_population = sorted(new_population, key=lambda tup: tup[0])
+        if len(new_population) == current_population_size + 1:
+            new_population_fitness -= new_population[-1][0]
+            new_population.pop(1)
         self.total_fitness = new_population_fitness
-        self.population = sorted(new_population, key=lambda tup: tup[0])
+        self.population = new_population
 
     # return two chromosomes picked by roulette wheel selection
     # TODO: check why this is working bad
@@ -164,15 +167,13 @@ class GA(object):
             chromosome[rand_ind1], chromosome[rand_ind2] = chromosome[rand_ind2], chromosome[rand_ind1]
 
     def run(self):
-        print self.graph
-        print "-----------------"
-        for it in xrange(0, self.args.iterations):
-            print "-----------------"
-            print "Iteration: ", it
-            print "-----------------"
-            print self.population
-            print "-----------------"
-            self._generate_next_population()
+        with open(self.args.log_path, 'w') as log_file:
+            for it in xrange(0, self.args.iterations):
+                print "-----------------"
+                print "Iteration: ", it
+                print "-----------------"
+                log_file.write(str([it, self.population[0][0], float(self.total_fitness)/len(self.population)]).strip('[]')+'\n')
+                self._generate_next_population()
 
         return min(self.population, key=itemgetter(0))
 
@@ -181,14 +182,15 @@ if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument('graph_path', type=str)
-        parser.add_argument('--iterations', type=int, default=200)
-        parser.add_argument('--population_size', type=int, default=70)
+        parser.add_argument('--iterations', type=int, default=400)
+        parser.add_argument('--population_size', type=int, default=71)
         parser.add_argument('--selection_method', type=str, choices=['roulette_wheel', 'rank'], default='rank')
         parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er'], default='pmx')
-        parser.add_argument('--crossover_probability', type=float, default=0.85)
+        parser.add_argument('--log_path', type=str, default='/tmp/TSP_GA.csv')
+        parser.add_argument('--crossover_probability', type=float, default=1)
         parser.add_argument('--mutation_probability', type=float, default=0.75)
         parser.add_argument('--elitism', type=bool, default=True)
-        parser.add_argument('--elitism_nbr', type=int, default=2)
+        parser.add_argument('--elitism_nbr', type=int, default=10)
 
         args = parser.parse_args()
         print "\n------------------------------------------------------------"
