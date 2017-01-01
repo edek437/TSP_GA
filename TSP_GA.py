@@ -34,6 +34,7 @@ class GA(object):
             random.shuffle(chromosome)
             fitness = self._count_fitness(chromosome)
             self.total_fitness += fitness  # needed for roulette wheel selection
+            # TODO: what about identical offsprings??
             self.population.append((fitness, copy.deepcopy(chromosome)))
         self.population = sorted(self.population, key=lambda tup: tup[0])  # needed for rank selection
 
@@ -49,7 +50,26 @@ class GA(object):
         return fitness
 
     def _generate_next_population(self):
-        pass
+        new_population = []
+        new_population_fitness = 0
+        current_population_size = len(self.population)
+        if self.args.elitism:
+            # TODO: Fix odd population size problem
+            new_population.append(self.population[:min(self.args.elitism_nbr/2*2, current_population_size)]) # ensure even elitism
+
+        while len(new_population) is not current_population_size:
+            parents = getattr(self, '_' + self.args.selection_method + '_select')()
+            child1 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[0]. parents[1])
+            child2 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[1]. parents[0])
+            for child in [child1, child2]:
+                self._mutate(child)
+                fitness = self._count_fitness(child)
+                new_population_fitness += fitness
+                # TODO: what about identical offsprings??
+                new_population.append((fitness, child))
+
+        self.total_fitness = new_population_fitness
+        self.population = sorted(new_population, key=lambda tup: tup[0])
 
     # return two chromosomes picked by roulette wheel selection
     def _roulette_wheel_select(self):
@@ -81,11 +101,38 @@ class GA(object):
 
         return parent_chromosomes
 
+    # return two offsprint of parent1 and parent2 generated using PMX method
     def _pmx_crossover(self, parent1, parent2):
-        pass
+        if random.random() >= self.args.crossover_probability:
+            return parent1
 
+    # return two offsprint of parent1 and parent2 generated using ER method
     def _er_crossover(self, parent1, parent2):
-        pass
+        if random.random() >= self.args.crossover_probability:
+            return parent1
+
+        # generate neighbour list
+        neighbours_dict = {}
+        for node in xrange(0, len(parent1)):
+            neighbours = []
+            for chromosome in [parent1, parent2]:
+                ind = chromosome.index(node)
+                neighbours.append(chromosome[(ind+1) % len(chromosome)])
+                neighbours.append(chromosome[(ind-1) % len(chromosome)])
+            neighbours_dict[(len(neighbours), node)] = neighbours
+
+        # edge recombination
+        child = [random.choice([parent1, parent2])[0]]
+        while len(child) is not len(parent1):
+            for node, neighbours in neighbours_dict.iteritems():
+                updated_neighbours = [n for n in neighbours if n != child[-1]]
+                neighbours_dict[(len(updated_neighbours), node)] = updated_neighbours
+            key_list = neighbours_dict.keys()
+            next_node = random.choice([k for k in key_list if k[0] == min(key_list, key=lambda t: t[1])])
+            child.append(next_node[1])
+            del neighbours_dict[next_node]
+
+        return child
 
     def _mutate(self, chromosome):
         if random.random() >= self.args.mutation_probability:
