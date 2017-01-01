@@ -61,6 +61,7 @@ class GA(object):
             parents = getattr(self, '_' + self.args.selection_method + '_select')()
             child1 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[0], parents[1])
             child2 = getattr(self, '_' + self.args.crossover_method + '_crossover')(parents[1], parents[0])
+            # import sys; sys.exit(0)
             for child in [child1, child2]:
                 self._mutate(child)
                 if child not in new_population:
@@ -132,18 +133,19 @@ class GA(object):
 
         # generate neighbour list
         neighbours_dict = {}
+        child = [random.choice([parent1, parent2])[0]]
         for node in xrange(0, len(parent1)):
+            if node == child[-1]:
+                continue
             neighbours = []
             for chromosome in [parent1, parent2]:
                 ind = chromosome.index(node)
-                neighbours.append(chromosome[(ind+1) % len(chromosome)])
-                neighbours.append(chromosome[(ind-1) % len(chromosome)])
+                for neighbour in [chromosome[(ind+1) % len(chromosome)], chromosome[(ind-1) % len(chromosome)]]:
+                    if neighbour != child[-1]:
+                        neighbours.append(neighbour)
             neighbours_dict[(len(neighbours), node)] = neighbours
 
-        # edge recombination
-        child = [random.choice([parent1, parent2])[0]]
-        key = [k for k in neighbours_dict.keys() if k[1] == child[-1]]
-        del neighbours_dict[key[0]]
+        # print neighbours_dict
         while len(child) is not len(parent1):
             new_neighbour_dict = {}
             for node_data, neighbours in neighbours_dict.iteritems():
@@ -181,11 +183,11 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser()
         parser.add_argument('graph_path', type=str)
         parser.add_argument('--iterations', type=int, default=200)
-        parser.add_argument('--population_size', type=int, default=71)
+        parser.add_argument('--population_size', type=int, default=90)
         parser.add_argument('--selection_method', type=str, choices=['roulette_wheel', 'rank'], default='rank')
         parser.add_argument('--crossover_method', type=str, choices=['pmx', 'er'], default='er')
         parser.add_argument('--log_path', type=str, default='/tmp/TSP_GA.csv')
-        parser.add_argument('--crossover_probability', type=float, default=1)
+        parser.add_argument('--crossover_probability', type=float, default=0.92)
         parser.add_argument('--mutation_probability', type=float, default=0.75)
         parser.add_argument('--elitism', type=bool, default=True)
         parser.add_argument('--elitism_nbr', type=int, default=10)
